@@ -469,6 +469,13 @@ environment variable for requests. For example, with Apache:
 
     SetEnvIf X-Forwarded-Protocol https HTTPS=1
 
+To start and stop nginx/uwsgi, follow OS service directions. For Ubuntu, this looks like this:
+
+    > sudo service nginx start/stop/restart
+    > sudo service uwsgi start/stop/restart
+
+If any service fails to start, you can view the logs in /var/log/[nginx, uwsgi].
+
 ### Using the miscellaneous scripts ###
 
 Categorise all uncategorised releases - this runs automatically after import.
@@ -560,9 +567,10 @@ A semi-reliable way to install the required packages is below (be careful of sud
 
     > sudo apt-get install npm nodejs-legacy ruby ruby-compass
 
-Run the npm install:
+Run the npm install (chown the dir back to your user temporarily):
 
     > cd webui
+    > chown -R <user>:<group> *
     > npm install [not using sudo]
 
 Install necessary build tools (using sudo):
@@ -580,6 +588,10 @@ Then initiate the build:
 
     > bower install
     > grunt build
+
+Then chown back to www-data:
+
+    > chown -R www-data:www-data *
 
 This will build a working and optimised version of the UI into the dist/ directory, which
 will then be hosted by your webserver as part of api.py. Note that you can disable the web
@@ -626,6 +638,19 @@ Run the following:
     > gem uninstall sass
     > gem install sass --no-ri --no-rdoc
     > gem install compass --no-ri --no-rdoc 
+
+- Using Ubuntu 14.04, I'm getting strange errors with parts of pynab referring to the "six" package.
+
+(from @JameZUK)
+
+This issue only presented itself with a highly frustrating error when trying to start the prebot. The error inside supervisor looks like: pynab:prebot: ERROR (abnormal termination)
+
+To fix it, just remove six from the base Ubuntu install and force pip3 to upgrade it to the latest version:
+
+> sudo rm /usr/lib/python2.7/dist-packages/six.pyc
+> sudo rm /usr/lib/python2.7/dist-packages/six.py
+> sudo rm -rf /usr/lib/python2.7/dist-packages/six-1.5.2.egg-info
+> sudo pip3 install six --upgrade
 
 
 Newznab API

@@ -10,56 +10,65 @@ from pynab.db import db_session, Pre
 def nzedbirc(unformattedPre):
     formattedPre = parseNzedbirc(unformattedPre)
 
-    with db_session() as db:
-        p = db.query(Pre).filter(Pre.name == formattedPre['name']).first()
+    if formattedPre is not None:
+        with db_session() as db:
+            p = db.query(Pre).filter(Pre.name == formattedPre['name']).first()
+        
+            if not p:
+                p = Pre(**formattedPre)
+            else:
+                for k, v in formattedPre.items():
+                    setattr(p, k, v)
 
-        if not p:
-            p = Pre(**formattedPre)
-        else:
-            for k, v in formattedPre.items():
-                setattr(p, k, v)
-
-        try:
-            db.add(p)
-            log.info("pre: Inserted/Updated - {}".format(formattedPre["name"]))
-        except Exception as e:
-            log.debug("pre: Error - {}".format(e))
+            try:
+                db.add(p)
+                log.info("pre: Inserted/Updated - {}".format(formattedPre["name"]))
+            except Exception as e:
+                log.debug("pre: Error - {}".format(e))
 
 
 #Message legend: DT: PRE Time(UTC) | TT: Title | SC: Source | CT: Category | RQ: Requestid | SZ: Size | FL: Files | FN: Filename
-#Sample: NEW: [DT: 2015-01-09 16:08:45][TT: Sample-Release][SC: sample-source][CT: 0DAY][RQ: N/A][SZ: N/A][FL: N/A][FN: N/A]
+#Sample: NEW: [DT: 2016-04-29 14:57:16] [TT: RELEASE] [SC: GROUP] [CT: CATEGORY] [RQ: REQUEST] [SZ: 3550MB] [FL: 71x50MB] [FN: N/A]
 def parseNzedbirc(unformattedPre):
+    CLEAN_REGEX = regex.compile('[\x02\x0F\x16\x1D\x1F]|\x03(\d{,2}(,\d{,2})?)?')
     PRE_REGEX = regex.compile(
         '(?P<preType>.+): \[DT: (?<pretime>.+)\] \[TT: (?P<name>.+)\] \[SC: (?P<source>.+)\] \[CT: (?P<category>.+)\] \[RQ: (?P<request>.+)\] \[SZ: (?P<size>.+)\] \[FL: (?P<files>.+)\] \[FN: (?P<filename>.+)\]')
 
     formattedPre = {}
 
-    try:
-        formattedPre = PRE_REGEX.search(unformattedPre).groupdict()
-    except Exception as e:
-        log.debug("pre: Error parsing nzedbirc - {}".format(e))
+    if unformattedPre is not None:
+        try:
+            cleanPre = regex.sub(CLEAN_REGEX, '', unformattedPre);
+            formattedPre = PRE_REGEX.search(cleanPre).groupdict()
+        except Exception as e:
+            log.debug("pre: Message prior to error - {}".format(unformattedPre))
+            log.debug("pre: Error parsing nzedbirc - {}".format(e))
+            formattedPre = None
 
-    if formattedPre['preType'] == "NUK":
-        formattedPre['nuked'] = True
+    if formattedPre is not None:
+        if formattedPre['preType'] == "NUK":
+            formattedPre['nuked'] = True
+        else:
+            formattedPre['nuked'] = False
+
+        #Deal with splitting out requests if they exist
+        if formattedPre['request'] != "N/A":
+            formattedPre['requestid'] = formattedPre['request'].split(":")[0]
+            formattedPre['requestgroup'] = formattedPre['request'].split(":")[1]
+        else:
+            formattedPre['requestid'] = None
+
+        formattedPre['searchname'] = releases.clean_release_name(formattedPre['name'])
+
+        #remove any columns we dont need. Perhaps a way to filter these out via regex? Or a way to ignore via sqlalchemy
+        formattedPre.pop("preType", None)
+        formattedPre.pop("size", None)
+        formattedPre.pop("files", None)
+        formattedPre.pop("request", None)
+
+        return formattedPre
     else:
-        formattedPre['nuked'] = False
-
-    #Deal with splitting out requests if they exist
-    if formattedPre['request'] != "N/A":
-        formattedPre['requestid'] = formattedPre['request'].split(":")[0]
-        formattedPre['requestgroup'] = formattedPre['request'].split(":")[1]
-    else:
-        formattedPre['requestid'] = None
-
-    formattedPre['searchname'] = releases.clean_release_name(formattedPre['name'])
-
-    #remove any columns we dont need. Perhaps a way to filter these out via regex? Or a way to ignore via sqlalchemy
-    formattedPre.pop("preType", None)
-    formattedPre.pop("size", None)
-    formattedPre.pop("files", None)
-    formattedPre.pop("request", None)
-
-    return formattedPre
+        return None
 
 
 # orlydb scraping

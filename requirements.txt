@@ -7,7 +7,7 @@ xmltodict
 pynzb
 requests
 roman
-regex>=2.4.44
+regex==2.4.44
 lxml
 daemonize
 colorlog
@@ -30,4 +30,6 @@ pySmartDL
 pytvmaze
 git+https://github.com/PyMySQL/PyMySQL.git
 nltk
-
+jaraco.itertools
+jaraco.collections
+jaraco.text
