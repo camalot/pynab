@@ -1,3 +1,5 @@
+predb_dump-*
+
 *.py[cod]
 
 # C extensions
