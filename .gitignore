@@ -1,4 +1,5 @@
 predb_dump-*
+debug.log
 
 *.py[cod]
 
